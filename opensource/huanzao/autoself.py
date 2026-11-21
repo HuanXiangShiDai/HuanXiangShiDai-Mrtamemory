@@ -46,7 +46,20 @@ NUM = re.compile(r"(\d+(?:\.\d+)?)")
 
 def digest(con: sqlite3.Connection, session: str, turn: int, step: int,
            apply_persona: bool = True) -> dict:
-    """把某一步的思考压成一条总结（走 scratch 正常流程，临时态随之清空）。"""
+    """把某一步的思考压成一条总结（走 scratch 正常流程，临时态随之清空）。
+
+    **已经收过口就不重压**：`stream.close` 会先 `scratch.close_case` 拿到一份
+    总结，再调这里。重压一遍会把 scratch 里已经删掉的行当成"没有 note"，
+    进而抛 ValueError，门 2 就整条作废（实测踩到）。
+    所以先看 `sum|<session>|<turn>|<step>` 在不在——在就用它。
+    """
+    uniq = "sum|%s|%d|%d" % (session, turn, step)
+    old = db.get_node(con, uniq)
+    if old:
+        return {"digest": uniq, "case": "%s|%d|%d" % (session, turn, step),
+                "node": int(old["id"]), "thoughts": 0,
+                "summary": str(old["body"]), "reused": True}
+
     rows = con.execute(
         "SELECT body FROM nodes WHERE kind='thought' AND uniq LIKE ? AND uniq NOT LIKE 'sum|%' "
         "ORDER BY id", ("thought|%s|%d|%d|%%" % (session, turn, step),)).fetchall()

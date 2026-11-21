@@ -1,4 +1,4 @@
-"""三路召回的最小版：字面 / 结构 / 状态。
+﻿"""三路召回的最小版：字面 / 结构 / 状态。
 
 字面：用户这句话里命中了哪些元素（含别名义项）
 结构：命中的元素在图上能连到哪些记忆（一跳）
@@ -76,8 +76,7 @@ def hit_elements(con: sqlite3.Connection, text: str, limit: int = 12,
             continue          # 操作词：指向要做的事，不指向往事
         if df.get(nid, 0) == 0:
             continue          # 孤儿元素：没有任何记忆引用它，命中它等于命中空气
-        # 小图不启用 30% 硬线：total 只有几条时任何元素都占 100%，
-        # 一刀切会让「init + 喂一句话 + 问」永远空（实测踩到）。
+        # 小图不启用 30% 硬线（total 只有几条时任何元素都占 100%）
         if total >= 4 and r["kind"] != "affect" and share > 0.3:
             continue
         # 「问题」「这些」这种到处都是的词：单独出现时不当种子
@@ -86,7 +85,7 @@ def hit_elements(con: sqlite3.Connection, text: str, limit: int = 12,
         kept.append((r, share))
     strong = [r for r, share in kept if r["kind"] == "affect" or share <= 0.05]
     # 泛词线是相对的，不是绝对 5%。这张图上人物名天生就占得宽（乙 54%、甲 12%、
-    # 渡鸦 6%），按 5% 一刀切，问谁都是空——人物恰好是最该被想起来的那个维度。
+    # 己 6%），按 5% 一刀切，问谁都是空——人物恰好是最该被想起来的那个维度。
     # 退一步：没有锐词时，只交出「最不泛」的一两个，仍不许整句话都靠背景词撑起来。
     if not strong and kept:
         strong = [r for r, _ in sorted(kept, key=lambda kv: kv[1])[:2]]
@@ -268,7 +267,7 @@ def cards_for_text(con: sqlite3.Connection, text: str, limit: int = 1,
     for r in rows:
         k = str(r["key"])
         mem = int(r["mem"])
-        # 单字人名（苏／樱／华）也是键；非人名的单字词不要
+        # 单字人名（申／未／酉）也是键；非人名的单字词不要
         if mem in exclude or (len(k) < 2 and k not in names) or len(k) < 1:
             continue
         if k in NOISE or k in META or k not in text:

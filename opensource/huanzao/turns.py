@@ -90,8 +90,11 @@ def ingest(con: sqlite3.Connection, source: str = "evicted", limit: int = 20,
     except Exception:
         pass
     if source in ("evicted", "current"):
+        # `current` 是个别名，真实表名是 `current_turn`。
+        # 早先直接拼成 FROM current，运行时才炸 no such table（实测踩到）。
+        table = "current_turn" if source == "current" else "evicted"
         rows = con.execute(
-            f"SELECT id, role, content FROM {source} ORDER BY id LIMIT ?", (limit,)).fetchall()
+            f"SELECT id, role, content FROM {table} ORDER BY id LIMIT ?", (limit,)).fetchall()
         seq = [(("user" if r["role"] == "user" else "assistant"), r["content"]) for r in rows]
     elif source == "library":
         from .sync import SRC_DEFAULT
@@ -140,9 +143,31 @@ def ingest(con: sqlite3.Connection, source: str = "evicted", limit: int = 20,
         elements_total += len(touched)
 
     if source in ("evicted", "current") and added and consume:
-        con.execute(f"DELETE FROM {source}")
+        # 同上：`current` 是别名，表名是 `current_turn`。
+        con.execute(f"DELETE FROM {'current_turn' if source == 'current' else 'evicted'}")
         con.commit()
 
     if verbose:
         print(f"收进来 {added} 轮对话（原文照留），元素 {elements_total} 个")
     return {"turns": added, "elements": elements_total}
+
+def record(con: sqlite3.Connection, user_text: str, her_text: str) -> int:
+    """把一轮真实对话登记进 `current_turn`，等 `ingest` 来收。
+
+    这是**管道**：插件在每轮结束时调它，于是对话不再需要人手补。
+    为什么先落表再 ingest、而不是直接写记忆：
+    这样 `turns.ingest` 只需要面对一种输入（表里的 role/content），
+    不用为"来自会话"和"来自出窗"写两套逻辑。
+    """
+    con.row_factory = sqlite3.Row
+    n = 0
+    for role, content in (("user", user_text), ("assistant", her_text)):
+        content = (content or "").strip()
+        if not content:
+            continue
+        con.execute(
+            "INSERT INTO current_turn(role, content, tokens) VALUES(?,?,?)",
+            (role, content, len(content)))
+        n += 1
+    con.commit()
+    return n

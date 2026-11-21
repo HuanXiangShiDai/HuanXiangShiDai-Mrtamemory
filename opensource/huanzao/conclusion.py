@@ -164,11 +164,14 @@ def materialize(con: sqlite3.Connection, summary_uniq: str, text: str) -> dict:
         made = False
     else:
         mid = db.node(con, "mem", body, uniq=uniq)
+        # order_key 必须唯一：早先这里写了个固定的 `...:900000`，
+        # 结果所有结论记忆共用同一排序键，时间轴直接报 duplicate_keys（实测踩到）。
+        # 用 mem 节点 id 当段内序——它天生唯一。
+        order_key = "3:000:0000000000:00000000:0000000000:%06d" % mid
         con.execute(
             "INSERT OR REPLACE INTO mem_src(mem_node, src_id, raw, first_person, fp_ver, "
             "when_iso, order_key, provenance) VALUES(?,?,?,?,?,?,?,?)",
-            (mid, uniq, body, body, "conclusion", "live", "3:000:0000000000:00000000:0000000000:900000",
-             PROVENANCE))
+            (mid, uniq, body, body, "conclusion", "live", order_key, PROVENANCE))
         made = True
 
     # 元素 → has：这样它才会被召回（和普通记忆走同一条路）。

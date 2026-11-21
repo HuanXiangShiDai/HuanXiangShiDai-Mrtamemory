@@ -1,9 +1,13 @@
-"""把活的记忆库接进图里。
+"""把上一代记忆库接进图里。**已于 2026-11-21 封存，默认拒绝执行。**
 
-`chat_memory.db` 是记忆的源头（她平时读写的那个），`graph.db` 是元图。
-这个模块做的是单向同步：
+`chat_memory.db` 是上一代记忆系统（检索型：tabs + FTS + 带权重的边 + 情绪/驱力），
+`graph.db` 是元图。两条并行的召回路径会让同一句话得到两个答案，所以决定只留元图。
 
-    新出现的记忆（tab） → 建点 → 写原文与第一人称 → 排叙事位置
+现在源库在：
+    `最终交付_幻造记忆层\\数据\\_封存_20261121\\chat_memory.db`
+
+`sync()` 仍然可用（逻辑保留，将来要迁移随时能跑），但**必须显式 force=True**，
+免得哪天一条命令把封存的东西又悄悄接回图里。
 
 幂等：已经在图里的（`mem_src.src_id` 有记录）不会重复进来。
 """
@@ -14,7 +18,9 @@ from pathlib import Path
 
 from . import db, normalize as nz, timeline
 
-SRC_DEFAULT = r"C:\Users\Administrator\Desktop\最终交付_幻造记忆层\数据\chat_memory.db"
+ARCHIVE_DIR = r"C:\Users\Administrator\Desktop\最终交付_幻造记忆层\数据\_封存_20261121"
+SRC_DEFAULT = ARCHIVE_DIR + r"\chat_memory.db"
+SRC_ARCHIVED = True          # 旧库已封存：默认路径就是封存路径，且 sync 拒绝执行
 
 
 def _src_rows(src_path: str) -> list[sqlite3.Row]:
@@ -27,7 +33,20 @@ def _src_rows(src_path: str) -> list[sqlite3.Row]:
     return rows
 
 
-def sync(con: sqlite3.Connection, src_path: str = SRC_DEFAULT, verbose: bool = True) -> dict:
+def sync(con: sqlite3.Connection, src_path: str = None, verbose: bool = True,
+         force: bool = False) -> dict:
+    """把封存的旧记忆库迁进图。
+
+    `force=False` 时**直接拒绝**：旧库已于 2026-11-21 封存，
+    留在封存目录里是为了可追溯，不是为了被悄悄接回来。
+    """
+    src_path = src_path or SRC_DEFAULT
+    if SRC_ARCHIVED and not force:
+        raise SystemExit(
+            "旧记忆库已封存（2026-11-21），不再作为活的记忆源。\n"
+            "  位置：%s\n"
+            "  确实要迁移进主图，请显式传 force=True（或先解封）。\n"
+            "  说明见同目录的 封存说明.md。" % src_path)
     rows = _src_rows(src_path)
     have = {str(r["src_id"]) for r in con.execute("SELECT src_id FROM mem_src").fetchall()}
     new = [r for r in rows if str(r["id"]) not in have]

@@ -128,6 +128,21 @@ def build_head(con: sqlite3.Connection) -> str:
         "宁可少说一句，也不要编一句。",
     ]):
         lines.append("· " + one)
+    # 常驻的 L2 自指规则：这条规矩**从图里读**，不写死在代码里。
+    # 它在图里与自己是 +1 环（rewrites × rewrites），所以它既是规矩，
+    # 也管着"自己这条规矩有没有被违反"——这就是 L2 的常驻形态。
+    # 规则一改（`rule|只读检查` 出新版本），这里下一轮就跟着变。
+    try:
+        from . import rule_graph as _rg
+        _ro = _rg.current(con, "只读检查")
+        if _ro:
+            _one = _ro.split("：", 1)[-1].strip()
+            if _one:
+                # 规则 body 是给解析器看的 kv 串；头段里得像一句规矩。
+                _one = _one.replace("／", "；").replace("——", "：")
+                lines.append("· 要把什么东西封成只读之前，先逐条查——" + _one)
+    except Exception:
+        pass
     return "\n".join(lines).strip()
 
 

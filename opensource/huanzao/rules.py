@@ -94,10 +94,10 @@ ENGINEERING_HITS = 2      # 命中几个词以上，这句话就算在谈工程
 # 改不动、审不了。搬进来之后，`extract` 每次切分前读它，
 # 而它自己可以被 `rule|触发·加停用` 之类的触发规则改（自指）。
 ELEMENT_STOP = "rule|元素选取"
-# 开源包**不预设**停用词——具体错在哪儿是每个项目自己的事。
-# 空列表时 `ensure_all` 不建这条规则，`element_stop_words` 返回空集，
-# 抽取行为与没有这条机制时一致。
-DEFAULT_ELEMENT_STOP: list[str] = []
+DEFAULT_ELEMENT_STOP = [
+    # 跨词边界的错误粘合（实测抽出来过）
+    "一半天", "父亲教",
+]
 
 
 def _list_body(title: str, words: list[str]) -> str:
@@ -151,10 +151,9 @@ def ensure_all(con: sqlite3.Connection) -> None:
     _put(con, HEAD_PICK, _kv_body("常驻取舍", DEFAULT_HEAD))
     _put(con, NOT_MEMORY,
          _list_body("不入记忆（这些是工程，不是她的往事）", DEFAULT_NOT_MEMORY))
-    if DEFAULT_ELEMENT_STOP:              # 空列表不建规则（见上方说明）
-        _put(con, ELEMENT_STOP,
-             _list_body("元素选取（这些片段不参与切分，也就不会被抽成元素）",
-                        DEFAULT_ELEMENT_STOP))
+    _put(con, ELEMENT_STOP,
+         _list_body("元素选取（这些片段不参与切分，也就不会被抽成元素）",
+                    DEFAULT_ELEMENT_STOP))
 
 
 def _words(con: sqlite3.Connection, uniq: str, default: list[str]) -> set[str]:

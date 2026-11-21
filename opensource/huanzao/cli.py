@@ -52,12 +52,30 @@ def ingest_text(con, text: str, title: str = "") -> dict:
     now = datetime.now().astimezone()
     order_key = (f"{timeline.NOW}:000:0000000000:"
                  f"{now:%Y%m%d}:0000000000:{mem:06d}")
+
+    # 第一人称改写：资料库里存的是第三方摘要（「用户说……她回答……」），
+    # 那是**资料**，不是记忆。能放进记忆基层的写法是「我、某时、对谁、当时怎么想」。
+    #
+    # 这里必须做，而且必须**有回退**：
+    # 早先这里把 first_person 写死成空字符串，于是开源版的记忆永远没有第一人称，
+    # 召回出来的全是第三人称摘要——核心特性等于没接。
+    # 改写要调 LLM；没有 key 时退回原文，也不能留空。
+    fp, ver = text, "raw"
+    try:
+        from . import rewrite as _rw
+        got_fp = _rw.rewrite(title, text, f"{now:%Y-%m-%d}")
+        if got_fp.get("memory"):
+            fp, ver = got_fp["memory"], f"cli-{got_fp.get('ver', 'fp')}"
+    except Exception:
+        pass          # 没 key / 网络不通 / 改写太短 —— 都退回原文
+
     con.execute(
         "INSERT INTO mem_src(mem_node, src_id, raw, first_person, fp_ver, when_iso, "
         "order_key, provenance) VALUES(?,?,?,?,?,?,?,?) "
-        "ON CONFLICT(mem_node) DO UPDATE SET raw=excluded.raw, when_iso=excluded.when_iso, "
+        "ON CONFLICT(mem_node) DO UPDATE SET raw=excluded.raw, first_person=excluded.first_person, "
+        "fp_ver=excluded.fp_ver, when_iso=excluded.when_iso, "
         "order_key=excluded.order_key, provenance=excluded.provenance",
-        (mem, uniq, text, "", "", f"{now:%Y-%m-%d}", order_key, "cli-ingest"),
+        (mem, uniq, text, fp, ver, f"{now:%Y-%m-%d}", order_key, "cli-ingest"),
     )
 
     ver, items = extract.run(text, "rules")

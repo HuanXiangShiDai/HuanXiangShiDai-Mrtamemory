@@ -32,7 +32,7 @@ LIFE_ORDER = [
     "canon:roster_founded",         # 十三英桀的位次是她亲手排的
     "canon:yield_first_seat",       # 让贤
     "canon:binding_catastrophe",    # 约束的惨剧之后
-    "canon:twelfth_herrsher_rin",   # 第十二律者：铃
+    "canon:twelfth_herrsher_rin",   # 第十二律者：午
     "canon:final_banquet",          # 最后的宴会
     "canon:fake_thirteenth",        # 真相：第十三律者
     "canon:kevin_deliverance",      # 送别

@@ -140,6 +140,21 @@ def close(con: sqlite3.Connection, session: str, turn: int, step: int) -> dict:
         results.append(_fire_selfref(con, session, turn, step, line))
     if results:
         out["selfref"] = results
+
+    # —— 主动自指的常路：没写〔自指〕段，也自己收一次 ——
+    # 到这里仍在 reset 之前：reset 会删掉 stream_state，而 digest 要读的是
+    # nodes 里这一步的 thought（不读 stream_state），所以顺序不影响取数。
+    if not results:
+        try:
+            from . import autoself
+            out["auto"] = autoself.run(con, session, turn, step, apply=True)
+        except Exception as e:                     # 自指失败不该吞掉收口本身
+            out["auto"] = {"ok": False, "why": str(e)[:120]}
+    else:
+        # 门 1 出手了，就把门 2 记成"跳过"——免得以后看日志分不清
+        # "没指" 和 "指了但解析不出"。
+        out["auto"] = {"skipped": "〔自指〕段已由 C2 闸门处理，不重复指"}
+
     reset(con, session, turn, step)
     return out
 

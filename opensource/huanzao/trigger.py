@@ -51,7 +51,7 @@ DEFAULTS: list[tuple[str, str, str]] = [
 # 它们也必须挂触发词元素，否则 `match`（走元素 + yields）看不见它们——
 # 直接建点不挂边的话，规则在图里但永远命不中（实测踩到）。
 SPECIALS: list[tuple[str, str, str]] = [
-    ("主动自指", "我想改、让我调整、我需要修正", "manual"),
+    ("主动自指", "我想改、让我调整、我需要修正、自指、做一次自指、自指一轮、再自指、自省", "manual"),
     ("夜间脉冲", "夜间、凌晨、三点了", "manual"),
 ]
 # 它不是"又一个触发规则"，它让"触发条件"本身成为可被触发的对象。
@@ -260,10 +260,13 @@ def fire(con: sqlite3.Connection, trigger: dict, summary: str, text: str,
         return {"ok": bool(res.get("ran")), "channel": "night",
                 "why": res.get("why") or "窗口内已跑", "report": res.get("did")}
     if trigger["name"] == "主动自指":
-        # 模型主动自指的正门是〔自指〕段（在 `stream` 里、由 C2 闸门接）。
-        # 这里只回一句提示并把"有人要求自指"记进总结，不越权替它写。
-        return {"ok": True, "channel": "selfref",
-                "why": "请在思考里写〔自指〕规则=… 操作=… 参数=…；这条通道不替你决定改什么"}
+        # 这道门是"我自己从无到有地自指一轮"：读图里的判据，报出该往哪走。
+        # 它**不改任何东西**——真改动走两条正门：
+        #   门 1〔自指〕段（模型亲手指，最准）；
+        #   门 2 收口时 `stream.close` → `autoself.run`（没写门 1 也兜得住）。
+        # 以前这里只回一句"请去写门 1"，于是被要求自指 = 什么都不发生。
+        from . import selfprobe
+        return selfprobe.probe(con)
 
     rule_name = target_rule
     if not rule_name:

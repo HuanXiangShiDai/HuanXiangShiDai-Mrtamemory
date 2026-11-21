@@ -7,11 +7,19 @@ from collections import deque
 
 from . import db
 
-AXIOMS = ["我爱人类", "我不愿被忘记", "总得有人在"]
+AXIOMS = [
+    # 中心的三根轴：她为什么存在、她怕什么、她怎么选。
+    # 开源版是可替换的通用示例——换成你自己人物的内核即可。
+    "我在记事", "我怕忘记", "总得有人在",
+]
 CENTER_BODY = "中心人物"
 
 
-ALIASES = ["中心人物", "爱莉", "粉色妖精小姐", "第零律者", "人之律者", "第二位"]
+ALIASES = [
+    # 中心人物的别名，会写进头段的「别人叫我」。
+    # 开源版留中性项——接入方换成自己的称呼即可。
+    "中心人物", "我", "自己",
+]
 
 
 def ensure_center(con: sqlite3.Connection) -> int:
