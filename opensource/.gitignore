@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 图数据库与运行产物
+*.db
+*.db-wal
+*.db-shm
+out/
+
+# 打包产物
+build/
+dist/
+
+.SPEC.internal.md
